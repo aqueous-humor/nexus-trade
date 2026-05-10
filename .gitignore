@@ -1,0 +1,22 @@
+# PHP / Laravel
+vendor/
+.env
+storage/logs/
+bootstrap/cache/
+
+# Node / Vue
+node_modules/
+dist/
+.env.local
+
+# Docker
+.env.docker
+
+# IDE
+.idea/
+.vscode/
+*.swp
+
+# OS
+.DS_Store
+Thumbs.db

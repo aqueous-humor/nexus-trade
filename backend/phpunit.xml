@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<phpunit xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:noNamespaceSchemaLocation="vendor/phpunit/phpunit/phpunit.xsd"
+         bootstrap="vendor/autoload.php"
+         colors="true"
+         stopOnFailure="false"
+>
+    <testsuites>
+        <testsuite name="Unit">
+            <directory>tests/Unit</directory>
+        </testsuite>
+        <testsuite name="Feature">
+            <directory>tests/Feature</directory>
+        </testsuite>
+        <testsuite name="Property">
+            <directory>tests/Property</directory>
+        </testsuite>
+    </testsuites>
+
+    <source>
+        <include>
+            <directory>app</directory>
+        </include>
+    </source>
+
+    <php>
+        <!-- Use SQLite in-memory for fast, isolated tests -->
+        <env name="APP_ENV" value="testing"/>
+        <env name="APP_KEY" value="base64:2fl+Ktvkfl+Fuz4Qp/A75G2RTiWVA/ZoKZvp6fiiM10="/>
+        <env name="APP_DEBUG" value="true"/>
+
+        <!-- SQLite in-memory database -->
+        <env name="DB_CONNECTION" value="sqlite"/>
+        <env name="DB_DATABASE" value=":memory:"/>
+
+        <!-- Array drivers — no real Redis/cache needed in tests -->
+        <env name="CACHE_DRIVER" value="array"/>
+        <env name="QUEUE_CONNECTION" value="sync"/>
+        <env name="SESSION_DRIVER" value="array"/>
+
+        <!-- Array mail driver — no real SMTP needed -->
+        <env name="MAIL_MAILER" value="array"/>
+
+        <!-- Disable broadcasting in tests (use fake) -->
+        <env name="BROADCAST_DRIVER" value="null"/>
+
+        <!-- Sanctum -->
+        <env name="SANCTUM_STATEFUL_DOMAINS" value="localhost"/>
+
+        <!-- Fraud / limit config -->
+        <env name="FRAUD_HIGH_FREQUENCY_THRESHOLD" value="3"/>
+        <env name="FRAUD_HIGH_FREQUENCY_WINDOW_MINUTES" value="10"/>
+        <env name="FRAUD_LARGE_TRANSACTION_USD" value="10000"/>
+        <env name="FRAUD_UNUSUAL_WITHDRAWAL_RATIO" value="0.80"/>
+        <env name="FRAUD_AUTO_REVIEW_SCORE" value="80"/>
+        <env name="WITHDRAWAL_DAILY_LIMIT_USD" value="5000"/>
+        <env name="WITHDRAWAL_MONTHLY_LIMIT_USD" value="50000"/>
+        <env name="DEMO_ACCOUNT_DEFAULT_BALANCE_CENTS" value="1000000"/>
+    </php>
+</phpunit>
