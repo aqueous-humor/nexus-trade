@@ -16,7 +16,8 @@ RUN composer install \
     --no-interaction \
     --no-scripts \
     --optimize-autoloader \
-    --prefer-dist
+    --prefer-dist \
+    --ignore-platform-reqs
 
 # Copy the rest of the application
 COPY . .
