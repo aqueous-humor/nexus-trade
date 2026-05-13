@@ -35,11 +35,11 @@ export default defineConfig(({ mode }) => ({
     sourcemap: mode !== 'production',
     rollupOptions: {
       output: {
-        manualChunks: {
-          'vendor-vue':    ['vue', 'vue-router', 'pinia'],
-          'vendor-charts': ['apexcharts', 'vue3-apexcharts'],
-          'vendor-echo':   ['laravel-echo', 'pusher-js'],
-          'vendor-axios':  ['axios'],
+        manualChunks(id) {
+          if (id.includes('node_modules/vue') || id.includes('node_modules/vue-router') || id.includes('node_modules/pinia')) return 'vendor-vue'
+          if (id.includes('node_modules/apexcharts') || id.includes('node_modules/vue3-apexcharts')) return 'vendor-charts'
+          if (id.includes('node_modules/laravel-echo') || id.includes('node_modules/pusher-js')) return 'vendor-echo'
+          if (id.includes('node_modules/axios')) return 'vendor-axios'
         },
       },
     },

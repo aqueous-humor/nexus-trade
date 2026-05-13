@@ -157,10 +157,10 @@ function getBotReply(input: string): string {
   const lower = input.toLowerCase()
   for (const group of BOT_RESPONSES) {
     if (group.keywords.some((k) => lower.includes(k))) {
-      return group.replies[Math.floor(Math.random() * group.replies.length)]
+      return group.replies[Math.floor(Math.random() * group.replies.length)] ?? ''
     }
   }
-  return FALLBACK[Math.floor(Math.random() * FALLBACK.length)]
+  return FALLBACK[Math.floor(Math.random() * FALLBACK.length)] ?? ''
 }
 
 function sendMessage() {
