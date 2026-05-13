@@ -31,22 +31,21 @@ FROM php:8.4-cli-alpine AS development
 RUN apk add --no-cache \
         git \
         curl \
-        libpng-dev \
         libxml2-dev \
         oniguruma-dev \
-        openssl-dev \
         sqlite-libs \
         sqlite-dev \
+    && apk add --no-cache --virtual .build-deps $PHPIZE_DEPS \
     && docker-php-ext-install \
         pdo_mysql \
         pdo_sqlite \
         bcmath \
         mbstring \
         xml \
-        ctype \
     && pecl install redis \
     && docker-php-ext-enable redis \
-    && rm -rf /var/cache/apk/*
+    && apk del .build-deps \
+    && rm -rf /var/cache/apk/* /tmp/pear
 
 # Install Composer
 COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
@@ -61,29 +60,26 @@ CMD ["sh", "-c", "composer install --no-interaction --prefer-dist && php artisan
 # ─── Stage 3: Production image ───────────────────────────────────────────────
 FROM php:8.4-fpm-alpine AS production
 
-# Install system dependencies and PHP extensions
+# Install system dependencies, PHP extensions, and Redis in one layer
 RUN apk add --no-cache \
         nginx \
         supervisor \
         curl \
-        libpng-dev \
         libxml2-dev \
         oniguruma-dev \
-        openssl-dev \
+        sqlite-libs \
+        sqlite-dev \
+    && apk add --no-cache --virtual .build-deps $PHPIZE_DEPS \
     && docker-php-ext-install \
         pdo_mysql \
+        pdo_sqlite \
         bcmath \
         mbstring \
         xml \
-        ctype \
     && pecl install redis \
     && docker-php-ext-enable redis \
-    && rm -rf /var/cache/apk/*
-
-# Install pdo_sqlite for testing/fallback
-RUN apk add --no-cache sqlite-libs sqlite-dev \
-    && docker-php-ext-install pdo_sqlite \
-    && rm -rf /var/cache/apk/*
+    && apk del .build-deps \
+    && rm -rf /var/cache/apk/* /tmp/pear
 
 WORKDIR /var/www/html
 
