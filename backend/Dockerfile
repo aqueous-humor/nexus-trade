@@ -41,7 +41,6 @@ RUN apk add --no-cache \
         pdo_sqlite \
         bcmath \
         mbstring \
-        tokenizer \
         xml \
         ctype \
     && pecl install redis \
@@ -74,7 +73,6 @@ RUN apk add --no-cache \
         pdo_mysql \
         bcmath \
         mbstring \
-        tokenizer \
         xml \
         ctype \
     && pecl install redis \
