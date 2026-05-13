@@ -28,7 +28,7 @@ const trendingPlans = computed(() => plans.value.filter((p) => p.is_trending))
 const allPlans = computed(() => plans.value.filter((p) => p.status === 'active'))
 
 function investInPlan(planId: number) {
-  router.push({ path: '/invest', query: { planId: String(planId) } })
+  router.push({ path: '/app/invest', query: { planId: String(planId) } })
 }
 
 onMounted(() => {

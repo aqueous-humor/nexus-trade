@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRouter, useRoute } from 'vue-router'
 import GuestLayout from '@/layouts/GuestLayout.vue'
 import BaseInput from '@/components/ui/BaseInput.vue'
 import BaseButton from '@/components/ui/BaseButton.vue'
@@ -8,6 +8,7 @@ import BaseAlert from '@/components/ui/BaseAlert.vue'
 import { useAuthStore } from '@/stores/auth'
 
 const router = useRouter()
+const route = useRoute()
 const authStore = useAuthStore()
 
 const email = ref('')
@@ -23,7 +24,8 @@ async function handleSubmit() {
 
   try {
     await authStore.login(email.value, password.value)
-    await router.push('/')
+    const redirect = typeof route.query.redirect === 'string' ? route.query.redirect : '/app'
+    await router.push(redirect)
   } catch (error: unknown) {
     const axiosError = error as {
       response?: {
@@ -38,7 +40,7 @@ async function handleSubmit() {
     if (errors) {
       const mapped: Record<string, string> = {}
       for (const [field, messages] of Object.entries(errors)) {
-        mapped[field] = Array.isArray(messages) ? messages[0] : messages
+        mapped[field] = Array.isArray(messages) ? (messages[0] ?? '') : (messages[0] ?? '')
       }
       fieldErrors.value = mapped
     } else {

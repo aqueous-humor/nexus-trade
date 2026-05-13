@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 36 36">
+  <defs>
+    <linearGradient id="g" x1="0" y1="0" x2="36" y2="36" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#00D4AA"/>
+      <stop offset="100%" stop-color="#00907A"/>
+    </linearGradient>
+  </defs>
+  <!-- Rounded square background -->
+  <rect width="36" height="36" rx="8" fill="url(#g)"/>
+  <!-- N lettermark -->
+  <rect x="7" y="7" width="5" height="22" fill="white"/>
+  <polygon points="12,7 17,7 25,29 20,29" fill="white"/>
+  <rect x="24" y="7" width="5" height="22" fill="white"/>
+  <!-- Subtle accent dot -->
+  <circle cx="29" cy="6" r="2.5" fill="white" opacity="0.5"/>
+</svg>

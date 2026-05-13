@@ -77,10 +77,10 @@ onMounted(() => {
         <p class="wallet__balance-label">Available Balance</p>
         <p class="wallet__balance-amount">{{ formatUSD(walletStore.balance) }}</p>
         <div class="wallet__actions">
-          <BaseButton variant="primary" @click="router.push('/wallet/deposit')">
+          <BaseButton variant="primary" @click="router.push('/app/wallet/deposit')">
             Deposit
           </BaseButton>
-          <BaseButton variant="secondary" @click="router.push('/wallet/withdraw')">
+          <BaseButton variant="secondary" @click="router.push('/app/wallet/withdraw')">
             Withdraw
           </BaseButton>
         </div>
@@ -91,7 +91,7 @@ onMounted(() => {
     <section class="wallet__section">
       <div class="wallet__section-header">
         <h2 class="wallet__section-title">Recent Transactions</h2>
-        <router-link to="/wallet/transactions" class="wallet__link">
+        <router-link to="/app/wallet/transactions" class="wallet__link">
           View all transactions →
         </router-link>
       </div>

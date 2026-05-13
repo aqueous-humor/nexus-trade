@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { useAdminStore, type AdminInvestment } from '@/stores/admin'
+import { useNotificationStore } from '@/stores/notification'
 import BaseTable from '@/components/ui/BaseTable.vue'
 import BaseButton from '@/components/ui/BaseButton.vue'
 import BaseBadge from '@/components/ui/BaseBadge.vue'
@@ -12,6 +13,8 @@ function formatUSD(cents: number): string {
 }
 
 const adminStore = useAdminStore()
+const notificationStore = useNotificationStore()
+const actionLoading = ref(false)
 
 // Filters
 const filterStatus = ref('all')
@@ -34,9 +37,22 @@ function openCreateModal() {
 }
 
 async function confirmCreate() {
-  // TODO: POST /api/v1/admin/investments
-  console.log('Create investment', createForm.value)
-  createModalOpen.value = false
+  actionLoading.value = true
+  try {
+    await adminStore.createInvestment({
+      user_id: Number(createForm.value.user_id),
+      account_id: Number(createForm.value.account_id),
+      plan_id: Number(createForm.value.plan_id),
+      duration_id: Number(createForm.value.duration_id),
+      amount: Number(createForm.value.amount),
+    })
+    notificationStore.showToast('Investment created.', 'success')
+    createModalOpen.value = false
+  } catch {
+    notificationStore.showToast('Failed to create investment.', 'danger')
+  } finally {
+    actionLoading.value = false
+  }
 }
 
 // Update status modal
@@ -52,9 +68,16 @@ function openStatusModal(inv: AdminInvestment) {
 
 async function confirmStatus() {
   if (!statusTarget.value) return
-  // TODO: PATCH /api/v1/admin/investments/:id/status
-  console.log('Update status', statusTarget.value.id, newStatus.value)
-  statusModalOpen.value = false
+  actionLoading.value = true
+  try {
+    await adminStore.updateInvestmentStatus(statusTarget.value.id, newStatus.value)
+    notificationStore.showToast('Status updated.', 'success')
+    statusModalOpen.value = false
+  } catch {
+    notificationStore.showToast('Failed to update status.', 'danger')
+  } finally {
+    actionLoading.value = false
+  }
 }
 
 // Record result modal
@@ -72,9 +95,19 @@ function openResultModal(inv: AdminInvestment) {
 
 async function confirmResult() {
   if (!resultTarget.value) return
-  // TODO: PATCH /api/v1/admin/investments/:id/result
-  console.log('Record result', resultTarget.value.id, newResult.value, resultProfitCents.value)
-  resultModalOpen.value = false
+  actionLoading.value = true
+  try {
+    await adminStore.recordInvestmentResult(resultTarget.value.id, {
+      result: newResult.value,
+      profit_cents: Number(resultProfitCents.value),
+    })
+    notificationStore.showToast('Result recorded.', 'success')
+    resultModalOpen.value = false
+  } catch {
+    notificationStore.showToast('Failed to record result.', 'danger')
+  } finally {
+    actionLoading.value = false
+  }
 }
 
 // Profit adjustment modal
@@ -92,9 +125,19 @@ function openProfitModal(inv: AdminInvestment) {
 
 async function confirmProfitAdjust() {
   if (!profitTarget.value) return
-  // TODO: PATCH /api/v1/admin/investments/:id/profit
-  console.log('Adjust profit', profitTarget.value.id, adjustedProfitCents.value, adjustmentReason.value)
-  profitModalOpen.value = false
+  actionLoading.value = true
+  try {
+    await adminStore.adjustInvestmentProfit(profitTarget.value.id, {
+      profit_cents: Number(adjustedProfitCents.value),
+      reason: adjustmentReason.value,
+    })
+    notificationStore.showToast('Profit adjusted.', 'success')
+    profitModalOpen.value = false
+  } catch {
+    notificationStore.showToast('Failed to adjust profit.', 'danger')
+  } finally {
+    actionLoading.value = false
+  }
 }
 
 // Table
@@ -238,7 +281,7 @@ onMounted(() => {
       </div>
       <template #footer>
         <BaseButton variant="secondary" @click="createModalOpen = false">Cancel</BaseButton>
-        <BaseButton @click="confirmCreate">Create</BaseButton>
+        <BaseButton :loading="actionLoading" @click="confirmCreate">Create</BaseButton>
       </template>
     </BaseModal>
 
@@ -261,7 +304,7 @@ onMounted(() => {
       </div>
       <template #footer>
         <BaseButton variant="secondary" @click="statusModalOpen = false">Cancel</BaseButton>
-        <BaseButton @click="confirmStatus">Update</BaseButton>
+        <BaseButton :loading="actionLoading" @click="confirmStatus">Update</BaseButton>
       </template>
     </BaseModal>
 
@@ -283,7 +326,7 @@ onMounted(() => {
       </div>
       <template #footer>
         <BaseButton variant="secondary" @click="resultModalOpen = false">Cancel</BaseButton>
-        <BaseButton @click="confirmResult">Record</BaseButton>
+        <BaseButton :loading="actionLoading" @click="confirmResult">Record</BaseButton>
       </template>
     </BaseModal>
 
@@ -307,7 +350,7 @@ onMounted(() => {
       </div>
       <template #footer>
         <BaseButton variant="secondary" @click="profitModalOpen = false">Cancel</BaseButton>
-        <BaseButton :disabled="!adjustedProfitCents" @click="confirmProfitAdjust">Adjust</BaseButton>
+        <BaseButton :disabled="!adjustedProfitCents" :loading="actionLoading" @click="confirmProfitAdjust">Adjust</BaseButton>
       </template>
     </BaseModal>
   </div>

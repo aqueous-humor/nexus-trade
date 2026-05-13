@@ -29,13 +29,16 @@ class AnalyticsEngine implements AnalyticsEngineInterface
 
     public function userTimeSeries(int $userId, string $granularity, Carbon $from, Carbon $to): array
     {
-        $format = $this->dateFormat($granularity);
+        $format      = $this->dateFormat($granularity);
+        $dateExpr    = DB::connection()->getDriverName() === 'mysql'
+            ? "DATE_FORMAT(created_at, '{$format}')"
+            : "strftime('{$format}', created_at)";
 
         return DB::table('investments')
             ->where('user_id', $userId)
             ->whereBetween('created_at', [$from, $to])
             ->whereIn('investments.status', ['active', 'completed'])
-            ->selectRaw("strftime('{$format}', created_at) as period")
+            ->selectRaw("{$dateExpr} as period")
             ->selectRaw('SUM(amount_cents) as invested_cents')
             ->selectRaw('SUM(profit_cents) as profit_cents')
             ->groupBy('period')
@@ -62,12 +65,15 @@ class AnalyticsEngine implements AnalyticsEngineInterface
 
     public function platformTimeSeries(string $granularity, Carbon $from, Carbon $to): array
     {
-        $format = $this->dateFormat($granularity);
+        $format   = $this->dateFormat($granularity);
+        $dateExpr = DB::connection()->getDriverName() === 'mysql'
+            ? "DATE_FORMAT(created_at, '{$format}')"
+            : "strftime('{$format}', created_at)";
 
         return DB::table('investments')
             ->whereBetween('created_at', [$from, $to])
             ->whereIn('investments.status', ['active', 'completed'])
-            ->selectRaw("strftime('{$format}', created_at) as period")
+            ->selectRaw("{$dateExpr} as period")
             ->selectRaw('COUNT(*) as investment_count')
             ->selectRaw('SUM(amount_cents) as invested_cents')
             ->selectRaw('SUM(profit_cents) as profit_cents')
@@ -103,8 +109,17 @@ class AnalyticsEngine implements AnalyticsEngineInterface
 
     private function dateFormat(string $granularity): string
     {
-        // strftime format — works for both SQLite (tests) and MySQL (production)
-        // In production with MySQL, swap to DATE_FORMAT if needed
+        $isMysql = DB::connection()->getDriverName() === 'mysql';
+
+        if ($isMysql) {
+            return match ($granularity) {
+                'weekly'  => '%Y-%u',
+                'monthly' => '%Y-%m',
+                default   => '%Y-%m-%d',
+            };
+        }
+
+        // SQLite (used in tests)
         return match ($granularity) {
             'weekly'  => '%Y-%W',
             'monthly' => '%Y-%m',
@@ -178,15 +193,16 @@ class AnalyticsEngine implements AnalyticsEngineInterface
         $topPlans = DB::table('investments')
             ->whereIn('investments.status', ['active', 'completed'])
             ->join('investment_plans', 'investments.plan_id', '=', 'investment_plans.id')
-            ->selectRaw('investments.plan_id, investment_plans.name, SUM(investments.amount_cents) as total')
+            ->selectRaw('investments.plan_id, investment_plans.name, SUM(investments.amount_cents) as total, COUNT(*) as count')
             ->groupBy('investments.plan_id', 'investment_plans.name')
             ->orderByDesc('total')
             ->limit(5)
             ->get()
             ->map(fn ($row) => [
-                'plan_id'      => $row->plan_id,
-                'plan_name'    => $row->name,
-                'total_cents'  => (int) $row->total,
+                'plan_id'     => $row->plan_id,
+                'plan_name'   => $row->name,
+                'total_cents' => (int) $row->total,
+                'count'       => (int) $row->count,
             ])
             ->toArray();
 

@@ -38,7 +38,7 @@ async function confirmLeverageChange() {
   } catch (err: unknown) {
     const apiErr = err as { response?: { data?: { message?: string; errors?: Record<string, string[]> } } }
     if (apiErr?.response?.data?.errors?.leverage) {
-      leverageError.value = apiErr.response.data.errors.leverage[0]
+      leverageError.value = apiErr.response.data.errors.leverage[0] ?? ''
     } else if (apiErr?.response?.data?.message) {
       leverageError.value = apiErr.response.data.message
     } else {

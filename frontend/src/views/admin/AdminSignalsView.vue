@@ -1,27 +1,24 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
+import { useAdminStore, type AdminSignal } from '@/stores/admin'
+import { useNotificationStore } from '@/stores/notification'
 import BaseTable from '@/components/ui/BaseTable.vue'
 import BaseButton from '@/components/ui/BaseButton.vue'
 import BaseBadge from '@/components/ui/BaseBadge.vue'
 import BaseModal from '@/components/ui/BaseModal.vue'
 import BaseInput from '@/components/ui/BaseInput.vue'
 
-interface Signal {
-  id: number
-  name: string
-  description: string
-  provider_metadata: string
-  status: 'active' | 'inactive'
-  created_at: string
-}
+type Signal = AdminSignal
 
-const isLoading = ref(false)
-const signals = ref<Signal[]>([])
+const adminStore = useAdminStore()
+const notificationStore = useNotificationStore()
+const actionLoading = ref(false)
+const signals = computed(() => adminStore.signals)
 
 // Modal state
 const modalOpen = ref(false)
-const editingSignal = ref<Signal | null>(null)
-const form = ref<Omit<Signal, 'id' | 'created_at'>>({
+const editingSignal = ref<AdminSignal | null>(null)
+const form = ref<{ name: string; description: string; provider_metadata: string; status: 'active' | 'inactive' }>({
   name: '',
   description: '',
   provider_metadata: '{}',
@@ -46,26 +43,40 @@ function openEditModal(signal: Signal) {
 }
 
 async function confirmSave() {
-  if (editingSignal.value) {
-    // TODO: PATCH /api/v1/admin/signals/:id
-    console.log('Update signal', editingSignal.value.id, form.value)
-  } else {
-    // TODO: POST /api/v1/admin/signals
-    console.log('Create signal', form.value)
+  actionLoading.value = true
+  try {
+    if (editingSignal.value) {
+      await adminStore.updateSignal(editingSignal.value.id, { ...form.value })
+      notificationStore.showToast('Signal updated.', 'success')
+    } else {
+      await adminStore.createSignal({ ...form.value })
+      notificationStore.showToast('Signal created.', 'success')
+    }
+    modalOpen.value = false
+  } catch {
+    notificationStore.showToast('Failed to save signal.', 'danger')
+  } finally {
+    actionLoading.value = false
   }
-  modalOpen.value = false
 }
 
-async function toggleActivate(signal: Signal) {
-  const newStatus = signal.status === 'active' ? 'inactive' : 'active'
-  // TODO: PATCH /api/v1/admin/signals/:id
-  console.log('Toggle signal', signal.id, newStatus)
+async function toggleActivate(signal: AdminSignal) {
+  try {
+    await adminStore.toggleSignalStatus(signal.id, signal.status !== 'active')
+    notificationStore.showToast(`Signal ${signal.status === 'active' ? 'deactivated' : 'activated'}.`, 'success')
+  } catch {
+    notificationStore.showToast('Failed to update signal status.', 'danger')
+  }
 }
 
-async function deleteSignal(signal: Signal) {
+async function deleteSignal(signal: AdminSignal) {
   if (!confirm(`Delete signal "${signal.name}"?`)) return
-  // TODO: DELETE /api/v1/admin/signals/:id
-  console.log('Delete signal', signal.id)
+  try {
+    await adminStore.deleteSignal(signal.id)
+    notificationStore.showToast('Signal deleted.', 'success')
+  } catch {
+    notificationStore.showToast('Failed to delete signal.', 'danger')
+  }
 }
 
 // Table
@@ -78,7 +89,7 @@ const columns = [
 ]
 
 const tableRows = computed(() =>
-  signals.value.map((s) => ({
+  (signals.value as AdminSignal[]).map((s) => ({
     id: s.id,
     name: s.name,
     status: s.status,
@@ -88,13 +99,8 @@ const tableRows = computed(() =>
   })),
 )
 
-onMounted(async () => {
-  isLoading.value = true
-  try {
-    // TODO: GET /api/v1/admin/signals
-  } finally {
-    isLoading.value = false
-  }
+onMounted(() => {
+  adminStore.fetchSignals()
 })
 </script>
 
@@ -105,7 +111,7 @@ onMounted(async () => {
       <BaseButton @click="openCreateModal">Create Signal</BaseButton>
     </div>
 
-    <BaseTable :columns="columns" :rows="tableRows" :loading="isLoading">
+    <BaseTable :columns="columns" :rows="tableRows" :loading="adminStore.isLoading">
       <template #empty>No signals found</template>
 
       <template #status="{ row }">
@@ -117,14 +123,14 @@ onMounted(async () => {
           <BaseButton
             size="sm"
             :variant="row.status === 'active' ? 'danger' : 'secondary'"
-            @click="toggleActivate((row as Record<string, unknown>)._raw as Signal)"
+            @click="toggleActivate((row as Record<string, unknown>)._raw as AdminSignal)"
           >
             {{ row.status === 'active' ? 'Deactivate' : 'Activate' }}
           </BaseButton>
-          <BaseButton size="sm" variant="secondary" @click="openEditModal((row as Record<string, unknown>)._raw as Signal)">
+          <BaseButton size="sm" variant="secondary" @click="openEditModal((row as Record<string, unknown>)._raw as AdminSignal)">
             Edit
           </BaseButton>
-          <BaseButton size="sm" variant="danger" @click="deleteSignal((row as Record<string, unknown>)._raw as Signal)">
+          <BaseButton size="sm" variant="danger" @click="deleteSignal((row as Record<string, unknown>)._raw as AdminSignal)">
             Delete
           </BaseButton>
         </div>
@@ -165,7 +171,7 @@ onMounted(async () => {
       </div>
       <template #footer>
         <BaseButton variant="secondary" @click="modalOpen = false">Cancel</BaseButton>
-        <BaseButton :disabled="!form.name" @click="confirmSave">
+        <BaseButton :disabled="!form.name" :loading="actionLoading" @click="confirmSave">
           {{ editingSignal ? 'Save Changes' : 'Create' }}
         </BaseButton>
       </template>

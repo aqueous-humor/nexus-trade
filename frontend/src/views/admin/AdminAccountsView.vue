@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { useAdminStore, type AdminAccount } from '@/stores/admin'
+import { useNotificationStore } from '@/stores/notification'
 import BaseTable from '@/components/ui/BaseTable.vue'
 import BaseButton from '@/components/ui/BaseButton.vue'
 import BaseBadge from '@/components/ui/BaseBadge.vue'
@@ -12,6 +13,8 @@ function formatUSD(cents: number): string {
 }
 
 const adminStore = useAdminStore()
+const notificationStore = useNotificationStore()
+const actionLoading = ref(false)
 
 // Reassign modal
 const reassignModalOpen = ref(false)
@@ -25,10 +28,17 @@ function openReassignModal(account: AdminAccount) {
 }
 
 async function confirmReassign() {
-  if (!reassignTargetAccount.value) return
-  // TODO: PATCH /api/v1/admin/accounts/:id/reassign
-  console.log('Reassign account', reassignTargetAccount.value.id, 'to user', reassignNewUserId.value)
-  reassignModalOpen.value = false
+  if (!reassignTargetAccount.value || !reassignNewUserId.value) return
+  actionLoading.value = true
+  try {
+    await adminStore.reassignAccount(reassignTargetAccount.value.id, Number(reassignNewUserId.value))
+    notificationStore.showToast('Account reassigned successfully.', 'success')
+    reassignModalOpen.value = false
+  } catch {
+    notificationStore.showToast('Failed to reassign account.', 'danger')
+  } finally {
+    actionLoading.value = false
+  }
 }
 
 // Create account modal
@@ -45,16 +55,31 @@ function openCreateModal() {
 }
 
 async function confirmCreate() {
-  // TODO: POST /api/v1/admin/accounts
-  console.log('Create account', createForm.value)
-  createModalOpen.value = false
+  actionLoading.value = true
+  try {
+    await adminStore.createAccount({
+      user_id: Number(createForm.value.user_id),
+      type: createForm.value.type,
+      leverage: Number(createForm.value.leverage),
+    })
+    notificationStore.showToast('Account created successfully.', 'success')
+    createModalOpen.value = false
+  } catch {
+    notificationStore.showToast('Failed to create account.', 'danger')
+  } finally {
+    actionLoading.value = false
+  }
 }
 
 // Suspend / Reactivate
 async function toggleSuspend(account: AdminAccount) {
   const newStatus = account.status === 'suspended' ? 'active' : 'suspended'
-  // TODO: PATCH /api/v1/admin/accounts/:id
-  console.log('Toggle suspend', account.id, newStatus)
+  try {
+    await adminStore.updateAccountStatus(account.id, newStatus)
+    notificationStore.showToast(`Account ${newStatus}.`, 'success')
+  } catch {
+    notificationStore.showToast('Failed to update account status.', 'danger')
+  }
 }
 
 // Table

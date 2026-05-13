@@ -23,6 +23,10 @@ export const useAuthStore = defineStore('auth', () => {
     try {
       const response = await authApi.login({ email, password })
       user.value = response.data.data.user
+      const token = response.data.data.token
+      if (token) {
+        localStorage.setItem('auth_token', token)
+      }
     } finally {
       isLoading.value = false
     }
@@ -42,6 +46,7 @@ export const useAuthStore = defineStore('auth', () => {
     try {
       await authApi.logout()
       user.value = null
+      localStorage.removeItem('auth_token')
     } finally {
       isLoading.value = false
     }
@@ -56,6 +61,7 @@ export const useAuthStore = defineStore('auth', () => {
       const axiosError = error as { response?: { status?: number } }
       if (axiosError?.response?.status === 401) {
         user.value = null
+        localStorage.removeItem('auth_token')
       } else {
         throw error
       }

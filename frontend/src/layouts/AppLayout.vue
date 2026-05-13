@@ -27,13 +27,20 @@ import TheNavbar from '@/components/TheNavbar.vue'
     display: flex;
     flex-direction: column;
     min-height: 100vh;
+
+    @media (max-width: 767px) {
+      margin-left: 0;
+    }
   }
 
   &__main {
     flex: 1;
-    padding-top: var(--navbar-height);
     padding: var(--navbar-height) var(--space-6) var(--space-6);
     overflow-y: auto;
+
+    @media (max-width: 767px) {
+      padding: var(--navbar-height) var(--space-4) var(--space-4);
+    }
   }
 }
 </style>

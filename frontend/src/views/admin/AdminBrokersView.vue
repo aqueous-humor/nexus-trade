@@ -1,27 +1,24 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
+import { useAdminStore, type AdminBroker } from '@/stores/admin'
+import { useNotificationStore } from '@/stores/notification'
 import BaseTable from '@/components/ui/BaseTable.vue'
 import BaseButton from '@/components/ui/BaseButton.vue'
 import BaseBadge from '@/components/ui/BaseBadge.vue'
 import BaseModal from '@/components/ui/BaseModal.vue'
 import BaseInput from '@/components/ui/BaseInput.vue'
 
-interface Broker {
-  id: number
-  name: string
-  platform_type: 'MT4' | 'MT5'
-  default_leverage: number
-  status: 'active' | 'inactive'
-  credentials_json: string
-}
+type Broker = AdminBroker
 
-const isLoading = ref(false)
-const brokers = ref<Broker[]>([])
+const adminStore = useAdminStore()
+const notificationStore = useNotificationStore()
+const actionLoading = ref(false)
+const brokers = computed(() => adminStore.brokers)
 
 // Modal state
 const modalOpen = ref(false)
-const editingBroker = ref<Broker | null>(null)
-const form = ref<Omit<Broker, 'id'>>({
+const editingBroker = ref<AdminBroker | null>(null)
+const form = ref<{ name: string; platform_type: 'MT4' | 'MT5'; default_leverage: number; status: 'active' | 'inactive'; credentials_json: string }>({
   name: '',
   platform_type: 'MT4',
   default_leverage: 1,
@@ -43,27 +40,45 @@ function openCreateModal() {
   modalOpen.value = true
 }
 
-function openEditModal(broker: Broker) {
+function openEditModal(broker: AdminBroker) {
   editingBroker.value = broker
-  form.value = { ...broker }
+  form.value = {
+    name: broker.name,
+    platform_type: broker.platform_type,
+    default_leverage: broker.default_leverage,
+    status: broker.status,
+    credentials_json: broker.credentials_json,
+  }
   modalOpen.value = true
 }
 
 async function confirmSave() {
-  if (editingBroker.value) {
-    // TODO: PATCH /api/v1/admin/brokers/:id
-    console.log('Update broker', editingBroker.value.id, form.value)
-  } else {
-    // TODO: POST /api/v1/admin/brokers
-    console.log('Create broker', form.value)
+  actionLoading.value = true
+  try {
+    const payload = { ...form.value, default_leverage: Number(form.value.default_leverage) }
+    if (editingBroker.value) {
+      await adminStore.updateBroker(editingBroker.value.id, payload)
+      notificationStore.showToast('Broker updated.', 'success')
+    } else {
+      await adminStore.createBroker(payload)
+      notificationStore.showToast('Broker created.', 'success')
+    }
+    modalOpen.value = false
+  } catch {
+    notificationStore.showToast('Failed to save broker.', 'danger')
+  } finally {
+    actionLoading.value = false
   }
-  modalOpen.value = false
 }
 
-async function deleteBroker(broker: Broker) {
+async function deleteBroker(broker: AdminBroker) {
   if (!confirm(`Delete broker "${broker.name}"?`)) return
-  // TODO: DELETE /api/v1/admin/brokers/:id
-  console.log('Delete broker', broker.id)
+  try {
+    await adminStore.deleteBroker(broker.id)
+    notificationStore.showToast('Broker deleted.', 'success')
+  } catch {
+    notificationStore.showToast('Failed to delete broker.', 'danger')
+  }
 }
 
 // Table
@@ -77,7 +92,7 @@ const columns = [
 ]
 
 const tableRows = computed(() =>
-  brokers.value.map((b) => ({
+  (brokers.value as AdminBroker[]).map((b) => ({
     id: b.id,
     name: b.name,
     platform: b.platform_type,
@@ -88,13 +103,8 @@ const tableRows = computed(() =>
   })),
 )
 
-onMounted(async () => {
-  isLoading.value = true
-  try {
-    // TODO: GET /api/v1/admin/brokers
-  } finally {
-    isLoading.value = false
-  }
+onMounted(() => {
+  adminStore.fetchBrokers()
 })
 </script>
 
@@ -105,7 +115,7 @@ onMounted(async () => {
       <BaseButton @click="openCreateModal">Create Broker</BaseButton>
     </div>
 
-    <BaseTable :columns="columns" :rows="tableRows" :loading="isLoading">
+    <BaseTable :columns="columns" :rows="tableRows" :loading="adminStore.isLoading">
       <template #empty>No brokers found</template>
 
       <template #platform="{ row }">
@@ -118,10 +128,10 @@ onMounted(async () => {
 
       <template #actions="{ row }">
         <div class="admin-brokers__actions">
-          <BaseButton size="sm" variant="secondary" @click="openEditModal((row as Record<string, unknown>)._raw as Broker)">
+          <BaseButton size="sm" variant="secondary" @click="openEditModal((row as Record<string, unknown>)._raw as AdminBroker)">
             Edit
           </BaseButton>
-          <BaseButton size="sm" variant="danger" @click="deleteBroker((row as Record<string, unknown>)._raw as Broker)">
+          <BaseButton size="sm" variant="danger" @click="deleteBroker((row as Record<string, unknown>)._raw as AdminBroker)">
             Delete
           </BaseButton>
         </div>
@@ -175,7 +185,7 @@ onMounted(async () => {
       </div>
       <template #footer>
         <BaseButton variant="secondary" @click="modalOpen = false">Cancel</BaseButton>
-        <BaseButton :disabled="!form.name" @click="confirmSave">
+        <BaseButton :disabled="!form.name" :loading="actionLoading" @click="confirmSave">
           {{ editingBroker ? 'Save Changes' : 'Create' }}
         </BaseButton>
       </template>

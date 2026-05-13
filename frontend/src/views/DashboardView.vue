@@ -18,6 +18,15 @@ const authStore = useAuthStore()
 const echo = useEcho()
 const polling = usePolling()
 
+// ── Greeting ──────────────────────────────────────────────────────────────────
+const greeting = computed(() => {
+  const h = new Date().getHours()
+  if (h >= 5  && h < 12) return 'Good morning'
+  if (h >= 12 && h < 17) return 'Good afternoon'
+  if (h >= 17 && h < 21) return 'Good evening'
+  return 'Good night'
+})
+
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
 function formatUSD(cents: number): string {
@@ -31,11 +40,11 @@ function formatUSD(cents: number): string {
 // ── Metric card values ────────────────────────────────────────────────────────
 
 const totalInvested = computed(() =>
-  analyticsStore.userMetrics ? formatUSD(analyticsStore.userMetrics.total_invested) : '$0.00',
+  analyticsStore.userMetrics ? formatUSD(analyticsStore.userMetrics.total_invested_cents) : '$0.00',
 )
 
 const totalProfit = computed(() =>
-  analyticsStore.userMetrics ? formatUSD(analyticsStore.userMetrics.total_profit) : '$0.00',
+  analyticsStore.userMetrics ? formatUSD(analyticsStore.userMetrics.total_profit_cents) : '$0.00',
 )
 
 const roiPercentage = computed(() =>
@@ -96,10 +105,10 @@ const chartsLoading = computed(() => analyticsStore.isLoading || investmentStore
 let unsubscribe: (() => void) | null = null
 
 onMounted(async () => {
-  const today = new Date().toISOString().split('T')[0]
+  const today = new Date().toISOString().slice(0, 10)
   const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
     .toISOString()
-    .split('T')[0]
+    .slice(0, 10)
 
   await Promise.all([
     analyticsStore.fetchUserMetrics(),
@@ -114,7 +123,7 @@ onMounted(async () => {
       onWalletUpdated(data) {
         const payload = data as { balance_cents?: number }
         if (payload.balance_cents !== undefined) {
-          walletStore.balance = payload.balance_cents
+          walletStore.setBalance(payload.balance_cents)
         }
       },
       onInvestmentStatusChanged() {
@@ -145,28 +154,42 @@ onUnmounted(() => {
 
 <template>
   <div class="dashboard">
-    <h1 class="dashboard__title">Dashboard</h1>
+    <!-- Greeting header -->
+    <div class="dashboard__header">
+      <div>
+        <h1 class="dashboard__title">{{ greeting }}, {{ authStore.user?.first_name ?? 'there' }} 👋</h1>
+        <p class="dashboard__subtitle">Here's what's happening with your portfolio today.</p>
+      </div>
+    </div>
 
     <!-- Metric cards -->
     <div class="dashboard__metrics">
       <MetricCard
         label="Total Invested"
         :value="totalInvested"
+        icon="wallet"
+        accent="teal"
         :loading="metricsLoading"
       />
       <MetricCard
         label="Total Profit"
         :value="totalProfit"
+        icon="trending-up"
+        accent="green"
         :loading="metricsLoading"
       />
       <MetricCard
-        label="ROI %"
+        label="ROI"
         :value="roiPercentage"
+        icon="bar-chart"
+        accent="purple"
         :loading="metricsLoading"
       />
       <MetricCard
         label="Active Investments"
         :value="activeInvestments"
+        icon="investments"
+        accent="amber"
         :loading="metricsLoading"
       />
     </div>
@@ -204,11 +227,26 @@ onUnmounted(() => {
   flex-direction: column;
   gap: var(--space-6);
 
+  &__header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: var(--space-4);
+  }
+
   &__title {
-    font-size: var(--text-3xl);
-    font-weight: 700;
+    font-size: var(--text-2xl);
+    font-weight: 800;
     color: var(--color-text);
     margin: 0;
+    letter-spacing: -0.03em;
+  }
+
+  &__subtitle {
+    font-size: var(--text-sm);
+    color: var(--color-text-muted);
+    margin: var(--space-1) 0 0;
   }
 
   &__metrics {

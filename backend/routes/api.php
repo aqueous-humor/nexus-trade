@@ -134,6 +134,16 @@ Route::prefix('v1')->group(function (): void {
             // Analytics
             Route::get('analytics', [\App\Http\Controllers\Analytics\AnalyticsController::class, 'platformMetrics'])->name('analytics.platform');
             Route::get('analytics/timeseries', [\App\Http\Controllers\Analytics\AnalyticsController::class, 'platformTimeSeries'])->name('analytics.platform.timeseries');
+            // Metrics (dashboard-ready shaped payload)
+            Route::get('metrics', [\App\Http\Controllers\Admin\MetricsController::class, 'index'])->name('metrics.index');
+            // Deposits (admin review)
+            Route::get('deposits', [\App\Http\Controllers\Admin\DepositController::class, 'index'])->name('deposits.index');
+            Route::post('deposits/{transaction}/approve', [\App\Http\Controllers\Admin\DepositController::class, 'approve'])->name('deposits.approve');
+            Route::post('deposits/{transaction}/reject', [\App\Http\Controllers\Admin\DepositController::class, 'reject'])->name('deposits.reject');
+            // Withdrawals (admin review)
+            Route::get('withdrawals', [\App\Http\Controllers\Admin\WithdrawalController::class, 'index'])->name('withdrawals.index');
+            Route::post('withdrawals/{transaction}/approve', [\App\Http\Controllers\Admin\WithdrawalController::class, 'approve'])->name('withdrawals.approve');
+            Route::post('withdrawals/{transaction}/reject', [\App\Http\Controllers\Admin\WithdrawalController::class, 'reject'])->name('withdrawals.reject');
             // Audit logs
             Route::get('audit-logs', [\App\Http\Controllers\Admin\AuditLogController::class, 'index'])->name('audit-logs.index');
         });

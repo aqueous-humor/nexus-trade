@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { useAdminStore, type AdminUser, type AdminAccount } from '@/stores/admin'
+import { useNotificationStore } from '@/stores/notification'
 import BaseTable from '@/components/ui/BaseTable.vue'
 import BaseInput from '@/components/ui/BaseInput.vue'
 import BaseButton from '@/components/ui/BaseButton.vue'
@@ -11,6 +12,7 @@ function formatUSD(cents: number): string {
 }
 
 const adminStore = useAdminStore()
+const notificationStore = useNotificationStore()
 
 // Search & filter state
 const searchQuery = ref('')
@@ -109,17 +111,35 @@ const tableRows = computed(() =>
   })),
 )
 
+const actionLoading = ref(false)
+
 async function changeRole(user: AdminUser) {
-  const newRole = user.role === 'admin' ? 'user' : 'admin'
-  // TODO: PATCH /api/v1/admin/users/:id
-  console.log('Change role', user.id, newRole)
+  actionLoading.value = true
+  try {
+    const newRole = user.role === 'admin' ? 'user' : 'admin'
+    await adminStore.updateUser(user.id, { role: newRole })
+    if (selectedUser.value?.id === user.id) selectedUser.value = { ...selectedUser.value, role: newRole }
+    notificationStore.showToast(`Role updated to ${newRole}.`, 'success')
+  } catch {
+    notificationStore.showToast('Failed to update role.', 'danger')
+  } finally {
+    actionLoading.value = false
+  }
 }
 
 async function toggleLock(user: AdminUser) {
-  const currentStatus = (user as Record<string, unknown>).status ?? 'active'
-  const newStatus = currentStatus === 'locked' ? 'active' : 'locked'
-  // TODO: PATCH /api/v1/admin/users/:id
-  console.log('Toggle lock', user.id, newStatus)
+  actionLoading.value = true
+  try {
+    const currentStatus = user.status ?? 'active'
+    const newStatus = currentStatus === 'locked' ? 'active' : 'locked'
+    await adminStore.updateUser(user.id, { status: newStatus })
+    if (selectedUser.value?.id === user.id) selectedUser.value = { ...selectedUser.value, status: newStatus as 'active' | 'locked' }
+    notificationStore.showToast(`Account ${newStatus === 'locked' ? 'locked' : 'unlocked'}.`, 'success')
+  } catch {
+    notificationStore.showToast('Failed to update account status.', 'danger')
+  } finally {
+    actionLoading.value = false
+  }
 }
 
 onMounted(() => {
@@ -240,14 +260,15 @@ onMounted(() => {
             </div>
 
             <div class="admin-users__drawer-actions">
-              <BaseButton variant="secondary" @click="changeRole(selectedUser)">
+              <BaseButton variant="secondary" :loading="actionLoading" @click="changeRole(selectedUser)">
                 Change Role (→ {{ selectedUser.role === 'admin' ? 'User' : 'Admin' }})
               </BaseButton>
               <BaseButton
-                :variant="(selectedUser as Record<string, unknown>).status === 'locked' ? 'secondary' : 'danger'"
+                :variant="selectedUser.status === 'locked' ? 'secondary' : 'danger'"
+                :loading="actionLoading"
                 @click="toggleLock(selectedUser)"
               >
-                {{ (selectedUser as Record<string, unknown>).status === 'locked' ? 'Unlock' : 'Lock' }} Account
+                {{ selectedUser.status === 'locked' ? 'Unlock' : 'Lock' }} Account
               </BaseButton>
             </div>
           </div>

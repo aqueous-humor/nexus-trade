@@ -42,7 +42,7 @@ async function handleSubmit() {
 
     setTimeout(() => {
       router.push('/login')
-    }, 2000)
+    }, 2500)
   } catch (error: unknown) {
     const axiosError = error as {
       response?: {
@@ -57,7 +57,7 @@ async function handleSubmit() {
     if (errors) {
       const mapped: Record<string, string> = {}
       for (const [field, messages] of Object.entries(errors)) {
-        mapped[field] = Array.isArray(messages) ? messages[0] : messages
+        mapped[field] = Array.isArray(messages) ? (messages[0] ?? '') : (messages[0] ?? '')
       }
       fieldErrors.value = mapped
     } else {

@@ -1,98 +1,123 @@
 <script setup lang="ts">
-import { ref } from 'vue'
-import { useRouter } from 'vue-router'
+import { ref, computed } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import ThemeToggle from '@/components/ui/ThemeToggle.vue'
+import AppIcon from '@/components/AppIcon.vue'
 
-const router = useRouter()
+const route     = useRoute()
+const router    = useRouter()
 const authStore = useAuthStore()
 
 const isUserMenuOpen = ref(false)
 
-function toggleUserMenu() {
-  isUserMenuOpen.value = !isUserMenuOpen.value
-}
+const pageTitle = computed(() => {
+  const name = route.name as string | undefined
+  const titles: Record<string, string> = {
+    dashboard:           'Dashboard',
+    accounts:            'Trading Accounts',
+    'account-detail':    'Account Detail',
+    plans:               'Investment Plans',
+    invest:              'New Investment',
+    investments:         'Investment History',
+    wallet:              'Wallet',
+    'wallet-deposit':    'Deposit Funds',
+    'wallet-withdraw':   'Withdraw Funds',
+    'wallet-transactions': 'Transactions',
+    signals:             'Trading Signals',
+    'admin-dashboard':   'Admin — Dashboard',
+    'admin-users':       'Admin — Users',
+    'admin-accounts':    'Admin — Accounts',
+    'admin-investments': 'Admin — Investments',
+    'admin-plans':       'Admin — Plans',
+    'admin-brokers':     'Admin — Brokers',
+    'admin-signals':     'Admin — Signals',
+    'admin-fraud':       'Admin — Fraud Review',
+    'admin-audit-logs':  'Admin — Audit Logs',
+  }
+  return name ? (titles[name] ?? '') : ''
+})
 
-function closeUserMenu() {
-  isUserMenuOpen.value = false
+function getInitials(first: string, last: string) {
+  return `${first.charAt(0)}${last.charAt(0)}`.toUpperCase()
 }
 
 async function handleLogout() {
-  closeUserMenu()
+  isUserMenuOpen.value = false
   await authStore.logout()
   router.push('/login')
-}
-
-function getInitials(firstName: string, lastName: string): string {
-  return `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase()
 }
 </script>
 
 <template>
   <header class="navbar" role="banner">
+    <!-- Left: page title -->
     <div class="navbar__left">
-      <span class="navbar__logo" aria-label="NexusTrade">NexusTrade</span>
+      <h1 class="navbar__title">{{ pageTitle }}</h1>
     </div>
 
+    <!-- Right: actions -->
     <div class="navbar__right">
+      <!-- Notification bell (placeholder) -->
+      <button class="navbar__action-btn" aria-label="Notifications" title="Notifications">
+        <AppIcon name="bell" :size="18" />
+      </button>
+
       <ThemeToggle />
 
-      <div class="user-menu" v-if="authStore.user">
+      <!-- User menu -->
+      <div v-if="authStore.user" class="user-menu">
         <button
           class="user-menu__trigger"
           :aria-expanded="isUserMenuOpen"
           aria-haspopup="true"
           aria-label="User menu"
-          @click="toggleUserMenu"
+          @click="isUserMenuOpen = !isUserMenuOpen"
         >
           <span class="user-menu__avatar" aria-hidden="true">
             {{ getInitials(authStore.user.first_name, authStore.user.last_name) }}
           </span>
           <span class="user-menu__name">{{ authStore.user.first_name }}</span>
-          <svg
+          <AppIcon
+            name="chevron-down"
+            :size="14"
             class="user-menu__chevron"
             :class="{ 'user-menu__chevron--open': isUserMenuOpen }"
-            width="16"
-            height="16"
-            viewBox="0 0 16 16"
-            fill="none"
-            aria-hidden="true"
-          >
-            <path d="M4 6l4 4 4-4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
-          </svg>
+          />
         </button>
 
-        <div
-          v-if="isUserMenuOpen"
-          class="user-menu__dropdown"
-          role="menu"
-          @keydown.escape="closeUserMenu"
-        >
-          <RouterLink
-            to="/profile"
-            class="user-menu__item"
-            role="menuitem"
-            @click="closeUserMenu"
+        <Transition name="dropdown">
+          <div
+            v-if="isUserMenuOpen"
+            class="user-menu__dropdown"
+            role="menu"
+            @keydown.escape="isUserMenuOpen = false"
           >
-            Profile
-          </RouterLink>
-          <button
-            class="user-menu__item user-menu__item--danger"
-            role="menuitem"
-            @click="handleLogout"
-          >
-            Logout
-          </button>
-        </div>
+            <div class="user-menu__header">
+              <span class="user-menu__full-name">
+                {{ authStore.user.first_name }} {{ authStore.user.last_name }}
+              </span>
+              <span class="user-menu__email">{{ authStore.user.email }}</span>
+            </div>
+            <div class="user-menu__separator" />
+            <button
+              class="user-menu__item user-menu__item--danger"
+              role="menuitem"
+              @click="handleLogout"
+            >
+              <AppIcon name="logout" :size="15" />
+              Sign out
+            </button>
+          </div>
+        </Transition>
       </div>
     </div>
 
-    <!-- Backdrop to close menu on outside click -->
     <div
       v-if="isUserMenuOpen"
       class="user-menu__backdrop"
       aria-hidden="true"
-      @click="closeUserMenu"
+      @click="isUserMenuOpen = false"
     />
   </header>
 </template>
@@ -115,23 +140,56 @@ function getInitials(firstName: string, lastName: string): string {
   &__left {
     display: flex;
     align-items: center;
-    gap: var(--space-3);
+    min-width: 0;
   }
 
-  &__logo {
-    font-size: var(--text-lg);
-    font-weight: 700;
-    color: var(--color-primary);
-    letter-spacing: -0.02em;
+  &__title {
+    font-size: var(--text-base);
+    font-weight: 600;
+    color: var(--color-text);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    margin: 0;
   }
 
   &__right {
     display: flex;
     align-items: center;
-    gap: var(--space-3);
+    gap: var(--space-2);
+    flex-shrink: 0;
+  }
+
+  &__action-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 2.25rem;
+    height: 2.25rem;
+    background: transparent;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    color: var(--color-text-muted);
+    cursor: pointer;
+    transition: color var(--transition-fast), background var(--transition-fast),
+      border-color var(--transition-fast);
+
+    &:hover {
+      color: var(--color-text);
+      background: var(--color-surface-2);
+      border-color: var(--color-primary);
+    }
+
+    &:focus-visible { outline: 2px solid var(--color-primary); outline-offset: 2px; }
+  }
+
+  @media (max-width: 767px) {
+    left: 0;
+    padding-left: calc(var(--space-4) + 2.25rem + var(--space-3));
   }
 }
 
+// ── User menu ──────────────────────────────────────────────────────────────────
 .user-menu {
   position: relative;
 
@@ -139,10 +197,10 @@ function getInitials(firstName: string, lastName: string): string {
     display: inline-flex;
     align-items: center;
     gap: var(--space-2);
-    padding: var(--space-1) var(--space-2);
+    padding: 0.3rem var(--space-3) 0.3rem 0.3rem;
     background: transparent;
     border: 1px solid var(--color-border);
-    border-radius: var(--radius-md);
+    border-radius: var(--radius-full);
     cursor: pointer;
     color: var(--color-text);
     font-size: var(--text-sm);
@@ -153,29 +211,27 @@ function getInitials(firstName: string, lastName: string): string {
       border-color: var(--color-primary);
     }
 
-    &:focus-visible {
-      outline: 2px solid var(--color-primary);
-      outline-offset: 2px;
-    }
+    &:focus-visible { outline: 2px solid var(--color-primary); outline-offset: 2px; }
   }
 
   &__avatar {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    width: 1.75rem;
-    height: 1.75rem;
-    background: var(--color-primary);
+    width: 1.875rem;
+    height: 1.875rem;
+    background: linear-gradient(135deg, var(--color-primary), var(--color-primary-dark));
     color: #0B0F1A;
     border-radius: var(--radius-full);
     font-size: var(--text-xs);
-    font-weight: 700;
+    font-weight: 800;
     flex-shrink: 0;
+    letter-spacing: 0.04em;
   }
 
   &__name {
     font-weight: 500;
-    max-width: 120px;
+    max-width: 100px;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -183,55 +239,73 @@ function getInitials(firstName: string, lastName: string): string {
 
   &__chevron {
     flex-shrink: 0;
-    transition: transform var(--transition-fast);
     color: var(--color-text-muted);
+    transition: transform var(--transition-fast);
 
-    &--open {
-      transform: rotate(180deg);
-    }
+    &--open { transform: rotate(180deg); }
   }
 
   &__dropdown {
     position: absolute;
     top: calc(100% + var(--space-2));
     right: 0;
-    min-width: 160px;
+    min-width: 220px;
     background: var(--color-surface);
     border: 1px solid var(--color-border);
-    border-radius: var(--radius-md);
-    box-shadow: var(--shadow-md);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-lg);
     z-index: 200;
     overflow: hidden;
   }
 
+  &__header {
+    padding: var(--space-3) var(--space-4);
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  &__full-name {
+    font-size: var(--text-sm);
+    font-weight: 600;
+    color: var(--color-text);
+  }
+
+  &__email {
+    font-size: var(--text-xs);
+    color: var(--color-text-muted);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  &__separator {
+    height: 1px;
+    background: var(--color-border);
+  }
+
   &__item {
-    display: block;
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
     width: 100%;
     padding: var(--space-3) var(--space-4);
     background: transparent;
     border: none;
     text-align: left;
     font-size: var(--text-sm);
+    font-family: var(--font-sans);
     color: var(--color-text);
     cursor: pointer;
     text-decoration: none;
     transition: background var(--transition-fast);
 
-    &:hover {
-      background: var(--color-surface-2);
-    }
-
-    &:focus-visible {
-      outline: 2px solid var(--color-primary);
-      outline-offset: -2px;
-    }
+    &:hover { background: var(--color-surface-2); }
+    &:focus-visible { outline: 2px solid var(--color-primary); outline-offset: -2px; }
 
     &--danger {
       color: var(--color-danger);
-
-      &:hover {
-        background: color-mix(in srgb, var(--color-danger) 10%, transparent);
-      }
+      &:hover { background: color-mix(in srgb, var(--color-danger) 8%, transparent); }
     }
   }
 
@@ -240,5 +314,17 @@ function getInitials(firstName: string, lastName: string): string {
     inset: 0;
     z-index: 150;
   }
+}
+
+// ── Dropdown transition ────────────────────────────────────────────────────────
+.dropdown-enter-active,
+.dropdown-leave-active {
+  transition: opacity var(--transition-fast), transform var(--transition-fast);
+}
+
+.dropdown-enter-from,
+.dropdown-leave-to {
+  opacity: 0;
+  transform: translateY(-6px) scale(0.97);
 }
 </style>

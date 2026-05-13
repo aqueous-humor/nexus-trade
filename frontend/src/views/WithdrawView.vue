@@ -78,12 +78,12 @@ async function confirmWithdrawal() {
       provider: provider.value,
     })
     isSuccess.value = true
-    setTimeout(() => router.push('/wallet'), 2000)
+    setTimeout(() => router.push('/app/wallet'), 2000)
   } catch (err: unknown) {
     const apiErr = err as { response?: { data?: { errors?: Record<string, string[]> } } }
     const errors = apiErr?.response?.data?.errors ?? {}
     for (const [field, messages] of Object.entries(errors)) {
-      fieldErrors.value[field] = Array.isArray(messages) ? messages[0] : String(messages)
+      fieldErrors.value[field] = Array.isArray(messages) ? (messages[0] ?? '') : String(messages)
     }
     // Go back to form if there are field errors
     if (Object.keys(fieldErrors.value).length > 0) {
@@ -106,7 +106,7 @@ function formatUSD(value: number): string {
 <template>
   <div class="withdraw">
     <!-- Back link -->
-    <router-link to="/wallet" class="withdraw__back">← Back to Wallet</router-link>
+    <router-link to="/app/wallet" class="withdraw__back">← Back to Wallet</router-link>
 
     <h1 class="withdraw__title">Withdraw Funds</h1>
 

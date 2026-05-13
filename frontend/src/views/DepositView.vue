@@ -25,7 +25,7 @@ const PROVIDERS = ['Binance', 'KuCoin', 'XT', 'Bank Transfer']
 const currencyType = ref<'fiat' | 'crypto'>('fiat')
 const currency = ref('USD')
 const network = ref('')
-const provider = ref(PROVIDERS[0])
+const provider = ref<string>(PROVIDERS[0] ?? 'Binance')
 const amount = ref<number | ''>('')
 const fieldErrors = ref<Record<string, string>>({})
 
@@ -43,7 +43,7 @@ const networkOptions = computed(() =>
 
 // Reset currency and network when type changes
 watch(currencyType, (type) => {
-  currency.value = type === 'fiat' ? FIAT_CURRENCIES[0] : CRYPTO_CURRENCIES[0]
+  currency.value = type === 'fiat' ? (FIAT_CURRENCIES[0] ?? 'USD') : (CRYPTO_CURRENCIES[0] ?? 'BTC')
   network.value = ''
 })
 
@@ -103,7 +103,7 @@ async function submit() {
     const apiErr = err as { response?: { data?: { errors?: Record<string, string[]> } } }
     const errors = apiErr?.response?.data?.errors ?? {}
     for (const [field, messages] of Object.entries(errors)) {
-      fieldErrors.value[field] = Array.isArray(messages) ? messages[0] : String(messages)
+      fieldErrors.value[field] = Array.isArray(messages) ? (messages[0] ?? '') : String(messages)
     }
   }
 }
@@ -122,7 +122,7 @@ function formatUSD(value: number): string {
 <template>
   <div class="deposit">
     <!-- Back link -->
-    <router-link to="/wallet" class="deposit__back">← Back to Wallet</router-link>
+    <router-link to="/app/wallet" class="deposit__back">← Back to Wallet</router-link>
 
     <h1 class="deposit__title">Deposit Funds</h1>
 
@@ -132,7 +132,7 @@ function formatUSD(value: number): string {
       <p class="deposit__success-body">
         Your deposit of {{ formatUSD(Number(amount)) }} has been submitted and is being processed.
       </p>
-      <BaseButton variant="primary" @click="router.push('/wallet')">
+      <BaseButton variant="primary" @click="router.push('/app/wallet')">
         Back to Wallet
       </BaseButton>
     </div>

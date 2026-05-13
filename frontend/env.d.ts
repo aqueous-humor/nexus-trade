@@ -13,5 +13,5 @@ interface ImportMeta {
 
 // Required by laravel-echo to locate the Pusher constructor at runtime
 interface Window {
-  Pusher: typeof import('pusher-js')
+  Pusher: typeof import('pusher-js').default
 }

@@ -32,7 +32,7 @@ async function handleSubmit() {
 
     const errors = axiosError?.response?.data?.errors
     if (errors?.email) {
-      emailError.value = Array.isArray(errors.email) ? errors.email[0] : errors.email
+      emailError.value = errors.email[0] ?? ''
     } else {
       generalError.value =
         axiosError?.response?.data?.message ?? 'An unexpected error occurred. Please try again.'

@@ -42,20 +42,27 @@ export const useNotificationStore = defineStore('notification', () => {
   }
 
   async function fetchPreferences(): Promise<void> {
-    // TODO: implement in notifications phase — call GET /api/v1/notification-preferences
     isLoading.value = true
     try {
-      // Will update preferences from response
+      const { default: client } = await import('@/api/client')
+      const res = await client.get<{ data: NotificationPreferences }>('/api/v1/notifications/preferences')
+      preferences.value = res.data.data
+    } catch {
+      // Silently ignore — non-critical
     } finally {
       isLoading.value = false
     }
   }
 
   async function updatePreferences(data: Partial<NotificationPreferences>): Promise<void> {
-    // TODO: implement in notifications phase — call PATCH /api/v1/notification-preferences
     isLoading.value = true
     try {
-      // Will update preferences from response
+      const { default: client } = await import('@/api/client')
+      const res = await client.patch<{ data: NotificationPreferences }>('/api/v1/notifications/preferences', data)
+      preferences.value = res.data.data
+    } catch (e: unknown) {
+      showToast('Failed to update notification preferences', 'danger')
+      throw e
     } finally {
       isLoading.value = false
     }

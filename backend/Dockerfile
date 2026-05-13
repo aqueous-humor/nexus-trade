@@ -19,8 +19,42 @@ COPY . .
 # Run post-install scripts now that the full app is present
 RUN composer run-script post-autoload-dump 2>/dev/null || true
 
-# ─── Stage 2: Production image ───────────────────────────────────────────────
-FROM php:8.3-fpm-alpine AS production
+# ─── Stage 2: Development image ──────────────────────────────────────────────
+FROM php:8.4-cli-alpine AS development
+
+RUN apk add --no-cache \
+        git \
+        curl \
+        libpng-dev \
+        libxml2-dev \
+        oniguruma-dev \
+        openssl-dev \
+        sqlite-libs \
+        sqlite-dev \
+    && docker-php-ext-install \
+        pdo_mysql \
+        pdo_sqlite \
+        bcmath \
+        mbstring \
+        tokenizer \
+        xml \
+        ctype \
+    && pecl install redis \
+    && docker-php-ext-enable redis \
+    && rm -rf /var/cache/apk/*
+
+# Install Composer
+COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
+
+WORKDIR /var/www/html
+
+EXPOSE 8000
+
+# Bootstrap: install deps, run migrations, start dev server
+CMD ["sh", "-c", "composer install --no-interaction --prefer-dist && php artisan migrate --force && php artisan serve --host=0.0.0.0 --port=8000"]
+
+# ─── Stage 3: Production image ───────────────────────────────────────────────
+FROM php:8.4-fpm-alpine AS production
 
 # Install system dependencies and PHP extensions
 RUN apk add --no-cache \

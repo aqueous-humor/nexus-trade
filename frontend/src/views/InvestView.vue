@@ -3,6 +3,7 @@ import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useInvestmentStore } from '@/stores/investment'
 import { useAccountStore } from '@/stores/account'
+import { investmentsApi } from '@/api/investments'
 import BaseButton from '@/components/ui/BaseButton.vue'
 import BaseAlert from '@/components/ui/BaseAlert.vue'
 
@@ -49,6 +50,7 @@ const termsAccepted = ref(false)
 const isSubmitting = ref(false)
 const submitError = ref('')
 const fieldErrors = ref<Record<string, string>>({})
+const termsVersion = ref('current')
 
 // Active accounts only
 const activeAccounts = computed(() =>
@@ -111,15 +113,15 @@ async function submit() {
       plan_id: plan.value!.id,
       duration_id: selectedDurationId.value,
       amount_cents: amountCents.value,
-      terms_version: 'current', // TODO: fetch actual terms version
+      terms_version: termsVersion.value,
     })
-    router.push('/investments')
+    router.push('/app/investments')
   } catch (err: unknown) {
     const apiErr = err as { response?: { data?: { message?: string; errors?: Record<string, string[]> } } }
     if (apiErr?.response?.data?.errors) {
       const errors = apiErr.response.data.errors
       for (const [key, messages] of Object.entries(errors)) {
-        fieldErrors.value[key] = Array.isArray(messages) ? messages[0] : String(messages)
+        fieldErrors.value[key] = Array.isArray(messages) ? (messages[0] ?? '') : String(messages)
       }
     } else if (apiErr?.response?.data?.message) {
       submitError.value = apiErr.response.data.message
@@ -145,13 +147,17 @@ function formatUSD(cents: number): string {
 // ── Lifecycle ─────────────────────────────────────────────────────────────────
 
 onMounted(async () => {
-  await Promise.all([
+  const [, , termsRes] = await Promise.allSettled([
     investmentStore.fetchPlans(),
     accountStore.fetchAccounts(),
+    investmentsApi.currentTerms(),
   ])
+  if (termsRes.status === 'fulfilled') {
+    termsVersion.value = termsRes.value.data.data.version
+  }
   // Pre-select first duration if available
   if (plan.value?.durations?.length) {
-    selectedDurationId.value = plan.value.durations[0].id
+    selectedDurationId.value = plan.value.durations[0]?.id ?? null
   }
 })
 </script>
@@ -162,7 +168,7 @@ onMounted(async () => {
     <template v-if="!investmentStore.isLoading && !plan">
       <div class="invest-view__error">
         <p class="invest-view__error-text">Plan not found or no plan selected.</p>
-        <router-link to="/plans" class="invest-view__back-link">← Back to Plans</router-link>
+        <router-link to="/app/plans" class="invest-view__back-link">← Back to Plans</router-link>
       </div>
     </template>
 
@@ -176,7 +182,7 @@ onMounted(async () => {
 
     <!-- Invest form -->
     <template v-else-if="plan">
-      <router-link to="/plans" class="invest-view__back-link">← Back to Plans</router-link>
+      <router-link to="/app/plans" class="invest-view__back-link">← Back to Plans</router-link>
 
       <h1 class="invest-view__title">Invest in {{ plan.name }}</h1>
 
@@ -225,7 +231,7 @@ onMounted(async () => {
             <p v-if="fieldErrors.account_id" class="invest-form__error">{{ fieldErrors.account_id }}</p>
             <p v-if="activeAccounts.length === 0" class="invest-form__hint">
               No active accounts found.
-              <router-link to="/accounts" class="invest-form__link">Create one</router-link>
+              <router-link to="/app/accounts" class="invest-form__link">Create one</router-link>
             </p>
           </div>
 

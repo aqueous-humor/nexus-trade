@@ -1,26 +1,22 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
+import { useAdminStore, type FraudAssessment } from '@/stores/admin'
+import { useNotificationStore } from '@/stores/notification'
 import BaseTable from '@/components/ui/BaseTable.vue'
 import BaseButton from '@/components/ui/BaseButton.vue'
 import BaseBadge from '@/components/ui/BaseBadge.vue'
 import BaseModal from '@/components/ui/BaseModal.vue'
 
-interface FraudAssessment {
-  id: number
-  entity_type: string
-  entity_id: number
-  risk_score: number
-  triggered_rules: string[]
-  status: 'pending' | 'approved' | 'rejected'
-}
-
-const isLoading = ref(false)
-const assessments = ref<FraudAssessment[]>([])
+const adminStore = useAdminStore()
+const notificationStore = useNotificationStore()
+const actionLoading = ref(false)
+const assessments = computed(() => adminStore.fraudAssessments)
 
 // Approve/Reject modal
 const actionModalOpen = ref(false)
 const actionType = ref<'approve' | 'reject'>('approve')
 const actionTarget = ref<FraudAssessment | null>(null)
+
 const actionReason = ref('')
 
 function openActionModal(assessment: FraudAssessment, type: 'approve' | 'reject') {
@@ -32,14 +28,21 @@ function openActionModal(assessment: FraudAssessment, type: 'approve' | 'reject'
 
 async function confirmAction() {
   if (!actionTarget.value) return
-  if (actionType.value === 'approve') {
-    // TODO: POST /api/v1/admin/fraud/:id/approve
-    console.log('Approve assessment', actionTarget.value.id)
-  } else {
-    // TODO: POST /api/v1/admin/fraud/:id/reject
-    console.log('Reject assessment', actionTarget.value.id, actionReason.value)
+  actionLoading.value = true
+  try {
+    if (actionType.value === 'approve') {
+      await adminStore.approveFraudAssessment(actionTarget.value.id)
+      notificationStore.showToast('Assessment approved.', 'success')
+    } else {
+      await adminStore.rejectFraudAssessment(actionTarget.value.id, actionReason.value)
+      notificationStore.showToast('Assessment rejected.', 'success')
+    }
+    actionModalOpen.value = false
+  } catch {
+    notificationStore.showToast('Failed to process assessment.', 'danger')
+  } finally {
+    actionLoading.value = false
   }
-  actionModalOpen.value = false
 }
 
 function riskScoreVariant(score: number): 'success' | 'warning' | 'danger' {
@@ -59,7 +62,7 @@ const columns = [
 ]
 
 const tableRows = computed(() =>
-  assessments.value.map((a) => ({
+  (assessments.value as FraudAssessment[]).map((a) => ({
     id: a.id,
     entity: `${a.entity_type} #${a.entity_id}`,
     risk_score: a.risk_score,
@@ -70,13 +73,8 @@ const tableRows = computed(() =>
   })),
 )
 
-onMounted(async () => {
-  isLoading.value = true
-  try {
-    // TODO: GET /api/v1/admin/fraud
-  } finally {
-    isLoading.value = false
-  }
+onMounted(() => {
+  adminStore.fetchFraud()
 })
 </script>
 
@@ -86,7 +84,7 @@ onMounted(async () => {
       <h1 class="admin-fraud__title">Fraud Review</h1>
     </div>
 
-    <BaseTable :columns="columns" :rows="tableRows" :loading="isLoading">
+    <BaseTable :columns="columns" :rows="tableRows" :loading="adminStore.isLoading">
       <template #empty>No fraud assessments found</template>
 
       <template #risk_score="{ row }">
@@ -172,6 +170,7 @@ onMounted(async () => {
         <BaseButton
           :variant="actionType === 'reject' ? 'danger' : 'primary'"
           :disabled="actionType === 'reject' && !actionReason"
+          :loading="actionLoading"
           @click="confirmAction"
         >
           {{ actionType === 'approve' ? 'Approve' : 'Reject' }}

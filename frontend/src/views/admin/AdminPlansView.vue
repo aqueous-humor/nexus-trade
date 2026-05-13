@@ -1,5 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
+import { useAdminStore, type AdminPlan } from '@/stores/admin'
+import { useNotificationStore } from '@/stores/notification'
 import BaseTable from '@/components/ui/BaseTable.vue'
 import BaseButton from '@/components/ui/BaseButton.vue'
 import BaseBadge from '@/components/ui/BaseBadge.vue'
@@ -10,8 +12,7 @@ function formatUSD(cents: number): string {
   return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 2 }).format(cents / 100)
 }
 
-interface Plan {
-  id: number
+interface PlanFormData {
   name: string
   description: string
   roi_percentage: number
@@ -19,19 +20,21 @@ interface Plan {
   max_amount_cents: number
   status: 'active' | 'inactive'
   trending: boolean
-  image_url?: string
-  trending_title?: string
-  trending_description?: string
+  image_url: string
+  trending_title: string
+  trending_description: string
   duration_labels: string
 }
 
-const isLoading = ref(false)
-const plans = ref<Plan[]>([])
+const adminStore = useAdminStore()
+const notificationStore = useNotificationStore()
+const actionLoading = ref(false)
+const plans = computed(() => adminStore.plans)
 
 // Modal state
 const modalOpen = ref(false)
-const editingPlan = ref<Plan | null>(null)
-const form = ref<Omit<Plan, 'id'>>({
+const editingPlan = ref<AdminPlan | null>(null)
+const form = ref<PlanFormData>({
   name: '',
   description: '',
   roi_percentage: 0,
@@ -45,45 +48,69 @@ const form = ref<Omit<Plan, 'id'>>({
   duration_labels: '',
 })
 
+const blankForm = (): PlanFormData => ({
+  name: '', description: '', roi_percentage: 0,
+  min_amount_cents: 0, max_amount_cents: 0,
+  status: 'active', trending: false,
+  image_url: '', trending_title: '', trending_description: '', duration_labels: '',
+})
+
 function openCreateModal() {
   editingPlan.value = null
-  form.value = {
-    name: '',
-    description: '',
-    roi_percentage: 0,
-    min_amount_cents: 0,
-    max_amount_cents: 0,
-    status: 'active',
-    trending: false,
-    image_url: '',
-    trending_title: '',
-    trending_description: '',
-    duration_labels: '',
-  }
+  form.value = blankForm()
   modalOpen.value = true
 }
 
-function openEditModal(plan: Plan) {
+function openEditModal(plan: AdminPlan) {
   editingPlan.value = plan
-  form.value = { ...plan }
+  form.value = {
+    name: plan.name,
+    description: plan.description,
+    roi_percentage: plan.roi_percentage,
+    min_amount_cents: plan.min_amount_cents,
+    max_amount_cents: plan.max_amount_cents,
+    status: plan.status,
+    trending: plan.trending,
+    image_url: plan.image_url ?? '',
+    trending_title: plan.trending_title ?? '',
+    trending_description: plan.trending_description ?? '',
+    duration_labels: plan.duration_labels ?? '',
+  }
   modalOpen.value = true
 }
 
 async function confirmSave() {
-  if (editingPlan.value) {
-    // TODO: PATCH /api/v1/admin/plans/:id
-    console.log('Update plan', editingPlan.value.id, form.value)
-  } else {
-    // TODO: POST /api/v1/admin/plans
-    console.log('Create plan', form.value)
+  actionLoading.value = true
+  try {
+    const payload: Record<string, unknown> = {
+      ...form.value,
+      min_amount_cents: Number(form.value.min_amount_cents),
+      max_amount_cents: Number(form.value.max_amount_cents),
+      roi_percentage: Number(form.value.roi_percentage),
+    }
+    if (editingPlan.value) {
+      await adminStore.updatePlan(editingPlan.value.id, payload)
+      notificationStore.showToast('Plan updated.', 'success')
+    } else {
+      await adminStore.createPlan(payload)
+      notificationStore.showToast('Plan created.', 'success')
+    }
+    modalOpen.value = false
+  } catch {
+    notificationStore.showToast('Failed to save plan.', 'danger')
+  } finally {
+    actionLoading.value = false
   }
-  modalOpen.value = false
 }
 
-async function deletePlan(plan: Plan) {
+async function deletePlan(plan: AdminPlan) {
   if (!confirm(`Delete plan "${plan.name}"?`)) return
-  // TODO: DELETE /api/v1/admin/plans/:id
-  console.log('Delete plan', plan.id)
+  try {
+    await adminStore.deletePlan(plan.id)
+    notificationStore.showToast('Plan deleted.', 'success')
+  } catch {
+    notificationStore.showToast('Failed to delete plan.', 'danger')
+  }
 }
 
 // Table
@@ -112,13 +139,8 @@ const tableRows = computed(() =>
   })),
 )
 
-onMounted(async () => {
-  isLoading.value = true
-  try {
-    // TODO: GET /api/v1/admin/plans
-  } finally {
-    isLoading.value = false
-  }
+onMounted(() => {
+  adminStore.fetchPlans()
 })
 </script>
 
@@ -129,7 +151,7 @@ onMounted(async () => {
       <BaseButton @click="openCreateModal">Create Plan</BaseButton>
     </div>
 
-    <BaseTable :columns="columns" :rows="tableRows" :loading="isLoading">
+    <BaseTable :columns="columns" :rows="tableRows" :loading="adminStore.isLoading">
       <template #empty>No plans found</template>
 
       <template #status="{ row }">
@@ -144,10 +166,10 @@ onMounted(async () => {
 
       <template #actions="{ row }">
         <div class="admin-plans__actions">
-          <BaseButton size="sm" variant="secondary" @click="openEditModal((row as Record<string, unknown>)._raw as Plan)">
+          <BaseButton size="sm" variant="secondary" @click="openEditModal((row as Record<string, unknown>)._raw as AdminPlan)">
             Edit
           </BaseButton>
-          <BaseButton size="sm" variant="danger" @click="deletePlan((row as Record<string, unknown>)._raw as Plan)">
+          <BaseButton size="sm" variant="danger" @click="deletePlan((row as Record<string, unknown>)._raw as AdminPlan)">
             Delete
           </BaseButton>
         </div>
@@ -204,7 +226,7 @@ onMounted(async () => {
       </div>
       <template #footer>
         <BaseButton variant="secondary" @click="modalOpen = false">Cancel</BaseButton>
-        <BaseButton :disabled="!form.name" @click="confirmSave">
+        <BaseButton :disabled="!form.name" :loading="actionLoading" @click="confirmSave">
           {{ editingPlan ? 'Save Changes' : 'Create' }}
         </BaseButton>
       </template>

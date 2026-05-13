@@ -17,9 +17,14 @@ class AnalyticsController extends Controller
      */
     public function userMetrics(Request $request): JsonResponse
     {
-        $metrics = $this->engine->userMetrics($request->user()->id);
+        $raw = $this->engine->userMetrics($request->user()->id);
 
-        return response()->json(['data' => $metrics]);
+        return response()->json(['data' => [
+            'total_invested_cents' => $raw['total_invested_cents'],
+            'total_profit_cents'   => $raw['total_profit_cents'],
+            'roi_percentage'       => $raw['roi_percentage'],
+            'active_investments'   => $raw['active_investments'],
+        ]]);
     }
 
     /**
@@ -37,7 +42,13 @@ class AnalyticsController extends Controller
         $from        = $request->from ? Carbon::parse($request->from) : now()->subMonth();
         $to          = $request->to   ? Carbon::parse($request->to)   : now();
 
-        $data = $this->engine->userTimeSeries($request->user()->id, $granularity, $from, $to);
+        $rows = $this->engine->userTimeSeries($request->user()->id, $granularity, $from, $to);
+
+        // Normalize to { date, value } for frontend chart compatibility
+        $data = array_map(static fn (array $row): array => [
+            'date'  => $row['period'],
+            'value' => $row['invested_cents'],
+        ], $rows);
 
         return response()->json(['data' => $data]);
     }

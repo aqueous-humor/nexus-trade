@@ -62,7 +62,7 @@ async function submitCreate() {
     if (apiErr?.response?.data?.errors) {
       const errors = apiErr.response.data.errors
       for (const [key, messages] of Object.entries(errors)) {
-        fieldErrors.value[key] = Array.isArray(messages) ? messages[0] : String(messages)
+        fieldErrors.value[key] = Array.isArray(messages) ? (messages[0] ?? '') : String(messages)
       }
     }
   } finally {
