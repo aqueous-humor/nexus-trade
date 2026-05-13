@@ -56,10 +56,14 @@ client.interceptors.response.use(
     // 401 Unauthorized — clear credentials and redirect to login
     if (status === 401) {
       localStorage.removeItem('auth_token')
-      const { useAuthStore } = await import('@/stores/auth')
-      const authStore = useAuthStore()
-      authStore.user = null
-      const currentPath = router.currentRoute.value.path
+      try {
+        const { useAuthStore } = await import('@/stores/auth')
+        const authStore = useAuthStore()
+        authStore.user = null
+      } catch {
+        // Pinia may not be active during early boot or in test environments
+      }
+      const currentPath = router.currentRoute?.value?.path
       if (currentPath !== '/login' && currentPath !== '/') {
         router.push('/login')
       }

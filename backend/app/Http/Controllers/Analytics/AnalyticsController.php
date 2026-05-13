@@ -24,6 +24,8 @@ class AnalyticsController extends Controller
             'total_profit_cents'   => $raw['total_profit_cents'],
             'roi_percentage'       => $raw['roi_percentage'],
             'active_investments'   => $raw['active_investments'],
+            'plan_distribution'    => $raw['plan_distribution'],
+            'computed_at'          => $raw['computed_at'],
         ]]);
     }
 
