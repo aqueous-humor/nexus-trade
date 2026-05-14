@@ -58,12 +58,10 @@ EXPOSE 8000
 CMD ["sh", "-c", "composer install --no-interaction --prefer-dist && php artisan migrate --force && php artisan serve --host=0.0.0.0 --port=8000"]
 
 # ─── Stage 3: Production image ───────────────────────────────────────────────
-FROM php:8.4-fpm-alpine AS production
+FROM php:8.4-cli-alpine AS production
 
-# Install system dependencies, PHP extensions, and Redis in one layer
+# Install PHP extensions
 RUN apk add --no-cache \
-        nginx \
-        supervisor \
         curl \
         libxml2-dev \
         oniguruma-dev \
@@ -89,19 +87,10 @@ COPY --from=builder /app/vendor ./vendor
 # Copy application code
 COPY . .
 
-# Copy nginx configuration
-COPY nginx.conf /etc/nginx/http.d/default.conf
-
-# Copy entrypoint script
-COPY docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
-RUN sed -i 's/\r$//' /usr/local/bin/docker-entrypoint.sh \
-    && chmod +x /usr/local/bin/docker-entrypoint.sh
-
 # Set correct permissions
 RUN chown -R www-data:www-data /var/www/html/storage /var/www/html/bootstrap/cache \
     && chmod -R 775 /var/www/html/storage /var/www/html/bootstrap/cache
 
-# Expose port
 EXPOSE 8080
 
-ENTRYPOINT ["docker-entrypoint.sh"]
+CMD ["sh", "-c", "php artisan config:cache && php artisan route:cache && php artisan migrate --force && php artisan serve --host=0.0.0.0 --port=${PORT:-8080}"]
