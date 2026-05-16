@@ -4,7 +4,6 @@ import router from '@/router'
 
 const client: AxiosInstance = axios.create({
   baseURL: import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000',
-  withCredentials: true, // Send cookies for Sanctum
   headers: {
     Accept: 'application/json',
     'Content-Type': 'application/json',
@@ -12,23 +11,11 @@ const client: AxiosInstance = axios.create({
   },
 })
 
-// CSRF cookie handling (Sanctum requirement)
-let csrfTokenFetched = false
-
-client.interceptors.request.use(async (config) => {
-  // Inject Bearer token when available (falls back to cookie auth)
+client.interceptors.request.use((config) => {
+  // Inject Bearer token for Sanctum token auth
   const token = localStorage.getItem('auth_token')
   if (token) {
     config.headers['Authorization'] = `Bearer ${token}`
-  }
-
-  // Fetch CSRF cookie before first mutating request
-  if (
-    !csrfTokenFetched &&
-    ['post', 'put', 'patch', 'delete'].includes(config.method?.toLowerCase() ?? '')
-  ) {
-    await axios.get(`${config.baseURL}/sanctum/csrf-cookie`, { withCredentials: true })
-    csrfTokenFetched = true
   }
   return config
 })
