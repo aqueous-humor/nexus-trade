@@ -99,15 +99,7 @@ class AuthController extends Controller
             $user->update(['failed_login_attempts' => 0, 'locked_until' => null]);
         }
 
-        // SPA cookie auth: use session-based auth
-        Auth::login($user);
-
-        // Only regenerate session if not using array driver (tests use array driver)
-        if (config('session.driver') !== 'array') {
-            $request->session()->regenerate();
-        }
-
-        // Also issue an API token for programmatic access
+        // Issue a Sanctum API token for Bearer token auth
         $token = $user->createToken('api-token')->plainTextToken;
 
         return response()->json([
